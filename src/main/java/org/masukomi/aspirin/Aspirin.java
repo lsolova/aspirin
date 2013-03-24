@@ -5,14 +5,13 @@ import java.util.Date;
 import javax.mail.MessagingException;
 import javax.mail.internet.MimeMessage;
 
-import org.masukomi.aspirin.core.AspirinInternal;
-import org.masukomi.aspirin.core.config.Configuration;
-import org.masukomi.aspirin.core.listener.AspirinListener;
-import org.masukomi.aspirin.core.store.mail.FileMailStore;
-import org.masukomi.aspirin.core.store.mail.MailStore;
-import org.masukomi.aspirin.core.store.mail.SimpleMailStore;
-import org.masukomi.aspirin.core.store.queue.QueueInfo;
-import org.masukomi.aspirin.core.store.queue.QueueStore;
+import org.masukomi.aspirin.config.Configuration;
+import org.masukomi.aspirin.listener.AspirinListener;
+import org.masukomi.aspirin.store.mail.FileMailStore;
+import org.masukomi.aspirin.store.mail.MailStore;
+import org.masukomi.aspirin.store.mail.SimpleMailStore;
+import org.masukomi.aspirin.store.queue.QueueInfo;
+import org.masukomi.aspirin.store.queue.QueueStore;
 
 /**
  * This is the facade class of the Aspirin package. You should to use this 
