@@ -45,15 +45,24 @@ public class FileMailStore implements MailStore {
 			msg = msgRef.get();
 			if( msg == null )
 			{
+                FileInputStream is = null;
 				try {
-					msg = new MimeMessage(Session.getDefaultInstance(System.getProperties()),new FileInputStream(new File(messagePathMap.get(mailid))));
+                    is = new FileInputStream(new File(messagePathMap.get(mailid)));
+                    msg = new MimeMessage(Session.getDefaultInstance(System.getProperties()), is);
 					msgRef = new WeakReference<MimeMessage>(msg);
 				} catch (FileNotFoundException e) {
 					AspirinInternal.getConfiguration().getLogger().error(getClass().getSimpleName()+" No file representation found for name "+mailid,e);
 				} catch (MessagingException e) {
 					AspirinInternal.getConfiguration().getLogger().error(getClass().getSimpleName()+" There is a messaging exception with name "+mailid,e);
-				}
-			}
+				} finally {
+                    if( is != null )
+                        try {
+                            is.close();
+                        } catch (IOException e) {
+                            AspirinInternal.getConfiguration().getLogger().error(getClass().getSimpleName() + " There is an input stream exception with name " + mailid, e);
+                        }
+                }
+            }
 		}
 		return msg;
 	}
@@ -76,8 +85,10 @@ public class FileMailStore implements MailStore {
 				if( subdirFiles == null ) { continue; }
 				for( File msgFile : subdirFiles )
 				{
+                    FileInputStream is = null;
 					try {
-						MimeMessage msg = new MimeMessage(Session.getDefaultInstance(System.getProperties()),new FileInputStream(msgFile));
+                        is = new FileInputStream(msgFile);
+                        MimeMessage msg = new MimeMessage(Session.getDefaultInstance(System.getProperties()), is);
 						String mailid = AspirinInternal.getMailID(msg);
 						synchronized (messageMap) {
 							messageMap.put(mailid, new WeakReference<MimeMessage>(msg));
@@ -87,7 +98,13 @@ public class FileMailStore implements MailStore {
 						AspirinInternal.getConfiguration().getLogger().error(getClass().getSimpleName()+" No file representation found with name "+msgFile.getAbsolutePath(),e);
 					} catch (MessagingException e) {
 						AspirinInternal.getConfiguration().getLogger().error(getClass().getSimpleName()+" There is a messaging exception in file "+msgFile.getAbsolutePath(),e);
-					}
+					} finally {
+                        if( is != null ) try {
+                            is.close();
+                        } catch (IOException e) {
+                            AspirinInternal.getConfiguration().getLogger().error(getClass().getSimpleName() + " There is an input stream exception in file " + msgFile.getAbsolutePath(), e);
+                        }
+                    }
 				}
 			}
 		}
@@ -117,11 +134,13 @@ public class FileMailStore implements MailStore {
 			dir.mkdirs();
 		filepath = new File(dir, mailid+".msg").getAbsolutePath();
 		// Save informations
+        FileOutputStream fileOutputStream = null;
 		try {
 			File msgFile = new File(filepath);
 			if( msgFile.exists() ) { msgFile.delete(); }
 			if( !msgFile.exists() ) { msgFile.createNewFile(); }
-			msg.writeTo(new FileOutputStream(msgFile));
+            fileOutputStream = new FileOutputStream(msgFile);
+            msg.writeTo(fileOutputStream);
 			synchronized (messageMap) {
 				messageMap.put(mailid, new WeakReference<MimeMessage>(msg));
 				messagePathMap.put(mailid, filepath);
@@ -132,7 +151,13 @@ public class FileMailStore implements MailStore {
 			AspirinInternal.getConfiguration().getLogger().error(getClass().getSimpleName()+" Could not write file for name "+mailid,e);
 		} catch (MessagingException e) {
 			AspirinInternal.getConfiguration().getLogger().error(getClass().getSimpleName()+" There is a messaging exception with name "+mailid,e);
-		}
+		} finally {
+            if( fileOutputStream != null ) try {
+                fileOutputStream.close();
+            } catch (IOException e) {
+                AspirinInternal.getConfiguration().getLogger().error(getClass().getSimpleName()+" There is an output stream exception with name "+mailid,e);
+            }
+        }
 	}
 	
 	public void setRootDir(File rootDir) {
