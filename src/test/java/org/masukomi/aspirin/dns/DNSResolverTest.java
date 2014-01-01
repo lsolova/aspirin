@@ -6,7 +6,7 @@ import org.junit.Test;
 import javax.mail.URLName;
 import java.util.Collection;
 
-public class DNSResolverTests {
+public class DNSResolverTest {
 	
 	@Test
 	public void resolveMXRecords() {
