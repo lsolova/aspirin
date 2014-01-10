@@ -3,41 +3,39 @@ package org.masukomi.aspirin.store.mail;
 import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.masukomi.aspirin.Aspirin;
+import org.masukomi.aspirin.AspirinInternal;
+import org.masukomi.aspirin.TestMailFactory;
 
-import javax.mail.Message;
-import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import java.util.List;
-import java.util.Random;
 
 public abstract class AbstractMailStoreTest {
 
     protected MailStore mailStore;
     protected MimeMessage mimeMessage;
-    protected Random rand = new Random();
+    protected MimeMessage mimeMessage2;
 
     @Test
     public void set() throws Exception {
-        String msgid1 = "set"+rand.nextInt(9999);
-        mailStore.set(msgid1,mimeMessage);
+        String msgid1 = AspirinInternal.getMailID(mimeMessage);
+        mailStore.set(mimeMessage);
         Assert.assertEquals(mimeMessage, mailStore.get(msgid1));
     }
 
     @Test
     public void remove() throws Exception {
-        String msgid1 = "remove"+rand.nextInt(9999);
-        mailStore.set(msgid1,mimeMessage);
+        String msgid1 = AspirinInternal.getMailID(mimeMessage);
+        mailStore.set(mimeMessage);
         mailStore.remove(msgid1);
         Assert.assertNull(mailStore.get(msgid1));
     }
 
     @Test
     public void getMailIds() throws Exception {
-        String msgid1 = "mailid1"+rand.nextInt(9999);
-        mailStore.set(msgid1,mimeMessage);
-        String msgid2 = "mailid2"+rand.nextInt(9999);
-        mailStore.set(msgid2,mimeMessage);
+        String msgid1 = AspirinInternal.getMailID(mimeMessage);
+        mailStore.set(mimeMessage);
+        String msgid2 = AspirinInternal.getMailID(mimeMessage2);
+        mailStore.set(mimeMessage2);
         List<String> mailIds = mailStore.getMailIds();
         Assert.assertTrue(mailIds.contains(msgid1) && mailIds.contains(msgid2));
         mailStore.remove(msgid1);
@@ -47,11 +45,9 @@ public abstract class AbstractMailStoreTest {
 
     @Before
     public void commonInitializeBefore() throws Exception {
-        mimeMessage = Aspirin.createNewMimeMessage();
-        mimeMessage.addFrom(InternetAddress.parse("aspirin@masukomi.org"));
-        mimeMessage.addRecipients(Message.RecipientType.TO, InternetAddress.parse("aspirin@masukomi.org"));
-        mimeMessage.setSubject("Testing email "+rand.nextInt(9999));
-        mimeMessage.setText("Lorem ipsum dolor sit amet.");
+        TestMailFactory testMailFactory = new TestMailFactory();
+        mimeMessage = testMailFactory.createMessage("aspirin@masukomi.org", "aspirin@masukomi.org", "Testing email 1", "Lorem ipsum dolor sit amet." );
+        mimeMessage2 = testMailFactory.createMessage("aspirin2@masukomi.org", "aspirin2@masukomi.org", "Testing email 2", "Lorem ipsum dolor sit amet." );
         initializeBefore();
     }
 

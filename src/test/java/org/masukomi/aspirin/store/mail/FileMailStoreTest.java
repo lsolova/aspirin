@@ -8,19 +8,20 @@ import org.masukomi.aspirin.AspirinInternal;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Random;
 
 public class FileMailStoreTest extends AbstractMailStoreTest {
+
+    protected Random rand = new Random();
 
     @Test
     public void init() throws Exception {
         Path rootDir = Paths.get("./testRootDir"+rand.nextInt(9999));
         try {
-            FileMailStore fileMailStore = new FileMailStore();
-            fileMailStore.setRootDir(rootDir.toFile());
+            FileMailStore fileMailStore = new FileMailStore(rootDir);
             String mailid = AspirinInternal.getMailID(mimeMessage);
-            fileMailStore.set(mailid, mimeMessage);
-            fileMailStore = new FileMailStore();
-            fileMailStore.setRootDir(rootDir.toFile());
+            fileMailStore.set(mimeMessage);
+            fileMailStore = new FileMailStore(rootDir);
             fileMailStore.init();
             Assert.assertNotNull(fileMailStore.get(mailid));
         } finally {
@@ -31,13 +32,12 @@ public class FileMailStoreTest extends AbstractMailStoreTest {
     @Override
     public void initializeBefore() {
         Path rootDir = Paths.get("./testRootDir"+rand.nextInt(9999));
-        mailStore = new FileMailStore();
-        ((FileMailStore)mailStore).setRootDir(rootDir.toFile());
+        mailStore = new FileMailStore(rootDir);
     }
 
     @After
     public void cleanupAfter() throws Exception {
-        Path rootDir = ((FileMailStore) mailStore).getRootDir().toPath();
+        Path rootDir = ((FileMailStore) mailStore).getRootDir();
         removeTestDirectory(rootDir);
     }
 

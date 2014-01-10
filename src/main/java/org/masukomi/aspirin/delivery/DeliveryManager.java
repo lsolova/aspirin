@@ -82,7 +82,7 @@ public final class DeliveryManager extends Thread implements ConfigurationChange
 		long expiry = AspirinInternal.getExpiry(mimeMessage);
 		Collection<InternetAddress> recipients = AspirinInternal.extractRecipients(mimeMessage);
 		synchronized (mailingLock) {
-			mailStore.set(mailid, mimeMessage);
+			mailStore.set(mimeMessage);
 			queueStore.add(mailid, expiry, recipients);
 		}
 		return mailid;

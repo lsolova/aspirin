@@ -1,25 +1,23 @@
 package org.masukomi.aspirin.store.mail;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import org.masukomi.aspirin.AspirinInternal;
 
 import javax.mail.internet.MimeMessage;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 
 /**
- * This store implementation has a simple hashmap to 
- * store all MimeMessage objects. Please, be careful: 
- * if you has a lot of objects in memory it could cause 
- * OutOfMemoryError.
- * 
- * @author Laszlo Solova
+ * This store implementation has a simple HashMap to store all MimeMessage objects. Please, be careful:
+ * if you has a lot of objects in memory it could cause OutOfMemoryError.
  *
  */
 public class SimpleMailStore implements MailStore {
 	
-	private HashMap<String, MimeMessage> messageMap = new HashMap<String, MimeMessage>();
+	private Map<String, MimeMessage> messageMap = new ConcurrentHashMap<>();
 	
 
 	@Override
@@ -29,7 +27,7 @@ public class SimpleMailStore implements MailStore {
 	
 	@Override
 	public List<String> getMailIds() {
-		return new ArrayList<String>(messageMap.keySet());
+		return new ArrayList<>(messageMap.keySet());
 	}
 	
 	@Override
@@ -43,8 +41,8 @@ public class SimpleMailStore implements MailStore {
 	}
 
 	@Override
-	public void set(String mailid, MimeMessage msg) {
-		messageMap.put(mailid, msg);
+	public void set(MimeMessage msg) {
+		messageMap.put(AspirinInternal.getMailID(msg), msg);
 	}
 
 }
