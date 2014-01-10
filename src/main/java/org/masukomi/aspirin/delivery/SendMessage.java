@@ -5,10 +5,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Properties;
 
-import javax.mail.MessagingException;
-import javax.mail.Session;
-import javax.mail.Transport;
-import javax.mail.URLName;
+import javax.mail.*;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
@@ -24,6 +21,8 @@ import com.sun.mail.smtp.SMTPTransport;
  *
  */
 public class SendMessage implements DeliveryHandler {
+
+    private TransportFactory transportFactory = new SmtpTransportFactory();
 
 	@Override
 	public void handle(DeliveryContext dCtx) throws DeliveryException {
@@ -55,7 +54,7 @@ public class SendMessage implements DeliveryHandler {
 				}
 				Transport transport = null;
  				try {
-					transport = session.getTransport(outgoingMailServer);
+					transport = transportFactory.getTransport(session, outgoingMailServer);
 					try {
 						transport.connect();
 						transport.sendMessage(message, addr);
@@ -104,7 +103,7 @@ public class SendMessage implements DeliveryHandler {
 			throw new DeliveryException("SendMessage.handle(): Mail '{}' sending failed, try later.", false);
 	}
 
-	private Exception resolveException(MessagingException msgExc) {
+    private Exception resolveException(MessagingException msgExc) {
 		MessagingException me = msgExc;
 		Exception nextException = null;
 		Exception lastException = msgExc;
@@ -119,4 +118,8 @@ public class SendMessage implements DeliveryHandler {
 		return lastException;
 	}
 
+    SendMessage setTransportFactory(TransportFactory transportFactory) {
+        this.transportFactory = transportFactory;
+        return this;
+    }
 }
