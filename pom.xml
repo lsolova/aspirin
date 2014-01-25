@@ -4,7 +4,7 @@
 
     <groupId>org.masukomi</groupId>
     <artifactId>aspirin</artifactId>
-    <version>0.2.00</version>
+    <version>1.0.00</version>
     <packaging>jar</packaging>
     <name>Aspirin</name>
     <description>Aspirin is an embeddable send-only SMTP server.</description>
@@ -74,6 +74,22 @@
             		</execution>
             	</executions>
 			</plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <excludes>
+                        <exclude>**/*.class</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
             <plugin>
             	<groupId>org.apache.maven.plugins</groupId>
             	<artifactId>maven-javadoc-plugin</artifactId>
@@ -210,13 +226,6 @@
         	<version>1.7.5</version>
         </dependency>
         
-        <!-- qos dependencies -->
-        <dependency>
-					<groupId>org.xerial</groupId>
-					<artifactId>sqlite-jdbc</artifactId>
-					<version>3.7.2</version>
-				</dependency>
-
         <!-- test -->
         <dependency>
             <groupId>junit</groupId>
