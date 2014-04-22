@@ -32,7 +32,7 @@ public class SimpleQueueStore implements QueueStore {
 	private Comparator<QueueInfo> queueInfoComparator = new Comparator<QueueInfo>() {
 		@Override
 		public int compare(QueueInfo o1, QueueInfo o2) {
-			return (int)(o2.getAttempt()-o1.getAttempt());
+			return Long.compare(o2.getAttempt(), o1.getAttempt());
 		}
 	};
 	
@@ -125,10 +125,12 @@ public class SimpleQueueStore implements QueueStore {
 	
 	@Override
 	public QueueInfo next() {
-		Collections.sort(queueInfoList, queueInfoComparator);
 		if( !queueInfoList.isEmpty() )
 		{
 			synchronized (lock) {
+
+                Collections.sort(queueInfoList, queueInfoComparator);
+
 				ListIterator<QueueInfo> queueInfoIt = queueInfoList.listIterator();
 				while( queueInfoIt.hasNext() )
 				{
