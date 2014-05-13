@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
  * parameters which are applied immediately. For more informations view 
  * {@link ConfigurationMBean}.</p>
  * 
- * <table border="1">
+ * <table border="1" summary="Configuration properties.">
  *   <tr>
  *     <th>Name</th>
  *     <th>Type</th>
@@ -128,7 +128,6 @@ import org.slf4j.LoggerFactory;
  *     <td>String</td>
  *     <td>
  *       The name of the logger. <i>Change by JMX applied immediately.</i>
- *       <br/>
  *       <strong>WARNING! Changing logger name cause replacing of logger.</strong>
  *     </td>
  *   </tr>
