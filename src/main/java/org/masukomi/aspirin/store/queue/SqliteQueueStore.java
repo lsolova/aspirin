@@ -1,42 +1,37 @@
 package org.masukomi.aspirin.store.queue;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.sql.Types;
+import org.masukomi.aspirin.Aspirin;
+import org.masukomi.aspirin.AspirinInternal;
+import javax.mail.MessagingException;
+import javax.mail.internet.InternetAddress;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import javax.mail.MessagingException;
-import javax.mail.internet.InternetAddress;
-import org.masukomi.aspirin.Aspirin;
-import org.masukomi.aspirin.AspirinInternal;
 
 /**
+ * <p>This class is a simple example of SQL based QueueStore implementation.</p>
+ * <p>SQLite is selected, because it is a platform independent, file based, easy SQL system.</p>
+ *
  * @author Laszlo Solova
  */
 public class SqliteQueueStore implements QueueStore {
 
-  public static final String PARAM_STORE_SQLITE_DB = "aspirin.store.sqlite.db";
+    public static final String PARAM_STORE_SQLITE_DB = "aspirin.store.sqlite.db";
 
-  private Connection         conn;
+    private Connection conn;
 
-  public SqliteQueueStore() throws Exception {
-    String sqliteDbPath = (String) Aspirin.getConfiguration().getProperty(
-        PARAM_STORE_SQLITE_DB);
+    public SqliteQueueStore() throws Exception {
+        this((String) Aspirin.getConfiguration().getProperty(PARAM_STORE_SQLITE_DB));
+    }
+
+    SqliteQueueStore(String sqliteDbPath) throws Exception {
     if (sqliteDbPath == null)
       throw new Exception(
           "Store file is undefined. Please, check configuration.");
     // Initialize SQLite connection
     Class.forName("org.sqlite.JDBC");
     conn = DriverManager.getConnection("jdbc:sqlite:" + sqliteDbPath);
-    // java.io.PrintWriter w =
-    // new java.io.PrintWriter
-    // (new java.io.OutputStreamWriter(System.out));
-    // DriverManager.setLogWriter(w);
     conn.setAutoCommit(false);
     Statement stmt = conn.createStatement();
     stmt.execute("CREATE TABLE IF NOT EXISTS queueinfos (mailid VARCHAR(32), recipient TEXT, resultinfo TEXT, attempt BIGINT, attemptcount INT, expiry BIGINT, dstate SMALLINT)");
@@ -45,22 +40,13 @@ public class SqliteQueueStore implements QueueStore {
     stmt.execute("CREATE INDEX IF NOT EXISTS queueinfos_dstate_idx ON queueinfos (dstate)");
     stmt.execute("CREATE INDEX IF NOT EXISTS queueinfos_complexmr_idx ON queueinfos (mailid, recipient)");
     conn.commit();
+      stmt.close();
     conn.setAutoCommit(true);
-    /*
-     * private String mailid;
-     * private String recipient;
-     * private String resultInfo;
-     * private long attempt = 0;
-     * private int attemptCount = 0;
-     * private long expiry = -1L;
-     * private DeliveryState state = DeliveryState.QUEUED;
-     */
   }
 
   @Override
-  public void add(String mailid, long expiry,
-      Collection<InternetAddress> recipients) throws MessagingException {
-    try {
+  public void add(String mailid, long expiry, Collection<InternetAddress> recipients) throws MessagingException {
+      try {
       PreparedStatement pStmt = conn
           .prepareStatement("INSERT INTO queueinfos (mailid, recipient, resultinfo, attempt, attemptcount, expiry, dstate) VALUES (?,?,?,?,?,?,?)");
       for (InternetAddress recipient : recipients) {
@@ -74,6 +60,7 @@ public class SqliteQueueStore implements QueueStore {
         pStmt.addBatch();
       }
       int[] results = pStmt.executeBatch();
+        pStmt.close();
       boolean allOkay = true;
       for (int r : results)
         if (r < 0) {
@@ -102,8 +89,9 @@ public class SqliteQueueStore implements QueueStore {
       if (rS != null) {
         while (rS.next())
           usedMailIds.add(rS.getString("mailid"));
+          rS.close();
       }
-      rS.close();
+      stmt.close();
       executeSimpleQuery("VACUUM");
     } catch (SQLException e) {
       AspirinInternal.getLogger().error("Store cleaning failed.", e);
@@ -119,6 +107,7 @@ public class SqliteQueueStore implements QueueStore {
   @Override
   public long getNextAttempt(String mailid, String recipient) {
     PreparedStatement pStmt;
+      int attempt = 0;
     try {
       pStmt = conn
           .prepareStatement("SELECT attempt FROM queueinfos WHERE mailid=? AND recipient=?");
@@ -126,19 +115,22 @@ public class SqliteQueueStore implements QueueStore {
       pStmt.setString(2, recipient);
       ResultSet rS = pStmt.executeQuery();
       if (rS != null && rS.next()) {
-        Integer attempt = rS.getInt("attempt");
-        if (attempt != null && 0 < attempt)
-          return attempt;
+        Integer attemptResult = rS.getInt("attempt");
+        if (0 < attemptResult)
+          attempt = attemptResult;
+          rS.close();
       }
+        pStmt.close();
     } catch (SQLException e) {
       AspirinInternal.getLogger().error("Next attempt checking failed.", e);
     }
-    return 0;
+    return attempt;
   }
 
   @Override
   public boolean hasBeenRecipientHandled(String mailid, String recipient) {
     PreparedStatement pStmt;
+      boolean recipientHandled = false;
     try {
       pStmt = conn
           .prepareStatement("SELECT dstate FROM queueinfos WHERE mailid=? AND recipient=?");
@@ -147,15 +139,17 @@ public class SqliteQueueStore implements QueueStore {
       ResultSet rS = pStmt.executeQuery();
       if (rS != null && rS.next()) {
         Integer dstate = rS.getInt("dstate");
-        return (dstate != null && (dstate == DeliveryState.FAILED.getStateId() || dstate == DeliveryState.SENT
-            .getStateId()));
+        recipientHandled = dstate == DeliveryState.FAILED.getStateId() || dstate == DeliveryState.SENT
+            .getStateId();
+          rS.close();
       }
+        pStmt.close();
     } catch (SQLException e) {
       AspirinInternal.getLogger().error(
           "Concrete delivery status checking (mailid '" + mailid
               + "' + recipient '" + recipient + "') failed.", e);
     }
-    return false;
+    return recipientHandled;
   }
 
   @Override
@@ -173,24 +167,26 @@ public class SqliteQueueStore implements QueueStore {
 
   @Override
   public boolean isCompleted(String mailid) {
-    PreparedStatement pStmt;
-    try {
-      pStmt = conn
+      boolean completed = false;
+      PreparedStatement pStmt;
+      try {
+        pStmt = conn
           .prepareStatement("SELECT COUNT(recipient) AS recipientcount FROM queueinfos WHERE mailid=? AND (dstate="
               + DeliveryState.QUEUED.getStateId()
               + " OR dstate="
               + DeliveryState.IN_PROGRESS.getStateId() + ")");
-      pStmt.setString(1, mailid);
-      ResultSet rS = pStmt.executeQuery();
+        pStmt.setString(1, mailid);
+        ResultSet rS = pStmt.executeQuery();
       if (rS != null && rS.next()) {
         Integer rCount = rS.getInt("recipientcount");
-        return (rCount != null && rCount == 0);
+        completed = rCount == 0;
+          rS.close();
       }
+        pStmt.close();
     } catch (SQLException e) {
-      AspirinInternal.getLogger().error("Completion checking failed.", e);
-    }
-
-    return false;
+          AspirinInternal.getLogger().error("Completion checking failed.", e);
+      }
+      return completed;
   }
 
   @Override
@@ -241,7 +237,9 @@ public class SqliteQueueStore implements QueueStore {
               }
             }
           }
+            rS.close();
         }
+          pStmt.close();
       }
     } catch (SQLException e) {
       AspirinInternal.getLogger().error(
@@ -289,24 +287,28 @@ public class SqliteQueueStore implements QueueStore {
 
   @Override
   public int size() {
+    int size = 0;
     try {
       Statement stmt = conn.createStatement();
       ResultSet rS = stmt
           .executeQuery("SELECT COUNT(DISTINCT mailid) AS mcount FROM queueinfos");
       if (rS != null && rS.next()) {
         Integer mcount = rS.getInt("mcount");
-        if (mcount != null && 0 < mcount)
-          return mcount;
+        if (0 < mcount)
+          size = mcount;
+          rS.close();
       }
+        stmt.close();
     } catch (SQLException e) {
       AspirinInternal.getLogger().error("Calculating queue size failed.", e);
     }
-    return 0;
+    return size;
   }
 
   private void executeSimpleQuery(String query) throws SQLException {
     Statement stmt = conn.createStatement();
     stmt.execute(query);
+    stmt.close();
   }
 
   private void executeSimplePreparedStatement(String sql, Object... parameters)
@@ -323,6 +325,7 @@ public class SqliteQueueStore implements QueueStore {
       i++;
     }
     pStmt.execute();
+    pStmt.close();
   }
 
 }
