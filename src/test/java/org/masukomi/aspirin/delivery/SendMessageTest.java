@@ -1,9 +1,8 @@
 package org.masukomi.aspirin.delivery;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.junit.Test;
 import org.jvnet.mock_javamail.Mailbox;
-import org.masukomi.aspirin.AspirinInternal;
 import org.masukomi.aspirin.TestMailFactory;
 import org.masukomi.aspirin.mail.MimeMessageWrapper;
 import org.masukomi.aspirin.store.queue.DeliveryState;
@@ -11,7 +10,6 @@ import org.masukomi.aspirin.store.queue.QueueInfo;
 
 import javax.mail.Message;
 import javax.mail.URLName;
-import javax.mail.internet.MimeMessage;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,15 +24,15 @@ public class SendMessageTest {
     public void sendMessage() throws Exception {
         DeliveryContext deliveryContext = new DeliveryContext();
 
-        List<URLName> urlNameList = new ArrayList<URLName>();
+        List<URLName> urlNameList = new ArrayList<>();
         urlNameList.add(new URLName("smtp://masukomi.org"));
         deliveryContext.addContextVariable("targetservers", urlNameList);
 
-        MimeMessage message = new TestMailFactory().createMessage(FROM_ADDRESS, RECIPIENT_ADDRESS, MAIL_SUBJECT, MAIL_TEXT);
+        MimeMessageWrapper message = new TestMailFactory().createMessage(FROM_ADDRESS, RECIPIENT_ADDRESS, MAIL_SUBJECT, MAIL_TEXT);
         deliveryContext.setMessage(message);
 
         QueueInfo qi = new QueueInfo();
-        qi.setMailid(AspirinInternal.getMailID(message));
+        qi.setMailid(message.getMailId());
         qi.setRecipient(message.getRecipients(Message.RecipientType.TO)[0].toString());
         qi.setState(DeliveryState.QUEUED);
         deliveryContext.setQueueInfo(qi);

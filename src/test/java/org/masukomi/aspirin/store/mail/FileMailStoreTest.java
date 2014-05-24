@@ -1,14 +1,14 @@
 package org.masukomi.aspirin.store.mail;
 
-import junit.framework.Assert;
 import org.junit.After;
 import org.junit.Test;
-import org.masukomi.aspirin.AspirinInternal;
 
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Random;
+
+import static org.junit.Assert.assertNotNull;
 
 public class FileMailStoreTest extends AbstractMailStoreTest {
 
@@ -16,22 +16,17 @@ public class FileMailStoreTest extends AbstractMailStoreTest {
 
     @Test
     public void init() throws Exception {
-        Path rootDir = Paths.get("./testRootDir"+rand.nextInt(9999));
-        try {
-            FileMailStore fileMailStore = new FileMailStore(rootDir);
-            String mailid = AspirinInternal.getMailID(mimeMessage);
-            fileMailStore.set(mimeMessage);
-            fileMailStore = new FileMailStore(rootDir);
-            fileMailStore.init();
-            Assert.assertNotNull(fileMailStore.get(mailid));
-        } finally {
-            removeTestDirectory(rootDir);
-        }
+        Path rootDir = Paths.get(getClass().getResource(".").toURI()).resolve("testRootDir" + rand.nextInt(9999));
+        mailStore = new FileMailStore(rootDir);
+        mailStore.set(mimeMessage);
+        mailStore = new FileMailStore(rootDir);
+        mailStore.init();
+        assertNotNull(mailStore.get(mimeMessage.getMailId()));
     }
 
     @Override
-    public void initializeBefore() {
-        Path rootDir = Paths.get("./testRootDir"+rand.nextInt(9999));
+    public void initializeBefore() throws Exception {
+        Path rootDir = Paths.get(getClass().getResource(".").toURI()).resolve("testRootDir" + rand.nextInt(9999));
         mailStore = new FileMailStore(rootDir);
     }
 

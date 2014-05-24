@@ -1,8 +1,8 @@
 package org.masukomi.aspirin.store.mail;
 
-import java.util.List;
+import org.masukomi.aspirin.mail.MimeMessageWrapper;
 
-import javax.mail.internet.MimeMessage;
+import java.util.List;
 
 /**
  * This store contain all MimeMessage instances. This is useful, when we want to reduce memory usage, because we can
@@ -10,9 +10,9 @@ import javax.mail.internet.MimeMessage;
  *
  */
 public interface MailStore {
-	public MimeMessage get(String mailid);
+	public MimeMessageWrapper get(String mailid);
 	public List<String> getMailIds();
 	public void init();
 	public void remove(String mailid);
-	public void set(MimeMessage msg);
+	public void set(MimeMessageWrapper msg);
 }

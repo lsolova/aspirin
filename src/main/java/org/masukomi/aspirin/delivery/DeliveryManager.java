@@ -7,7 +7,6 @@ import java.util.NoSuchElementException;
 
 import javax.mail.MessagingException;
 import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
 
 import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.GenericObjectPool;
@@ -16,6 +15,7 @@ import org.masukomi.aspirin.config.Configuration;
 import org.masukomi.aspirin.config.ConfigurationChangeListener;
 import org.masukomi.aspirin.config.ConfigurationMBean;
 import org.masukomi.aspirin.dns.ResolveHost;
+import org.masukomi.aspirin.mail.MimeMessageWrapper;
 import org.masukomi.aspirin.store.mail.MailStore;
 import org.masukomi.aspirin.store.queue.DeliveryState;
 import org.masukomi.aspirin.store.queue.QueueInfo;
@@ -31,11 +31,10 @@ public final class DeliveryManager extends Thread implements ConfigurationChange
 	private MailStore mailStore;
 	private QueueStore queueStore;
 	private DeliveryMaintenanceThread maintenanceThread;
-	private Object mailingLock = new Object();
+	private final Object mailingLock = new Object();
 	private ObjectPool deliveryThreadObjectPool = null;
 	private boolean running = false;
-	private GenericPoolableDeliveryThreadFactory deliveryThreadObjectFactory = null;
-	private Map<String, DeliveryHandler> deliveryHandlers = new HashMap<String, DeliveryHandler>();
+    private Map<String, DeliveryHandler> deliveryHandlers = new HashMap<>();
 	
 	public DeliveryManager() {
 		// Set up default objects.
@@ -51,13 +50,13 @@ public final class DeliveryManager extends Thread implements ConfigurationChange
 		gopConf.whenExhaustedAction = GenericObjectPool.WHEN_EXHAUSTED_BLOCK;
 		
 		// Create DeliveryThread object factory used in pool
-		deliveryThreadObjectFactory = new GenericPoolableDeliveryThreadFactory();
+        GenericPoolableDeliveryThreadFactory deliveryThreadObjectFactory = new GenericPoolableDeliveryThreadFactory();
 		
 		// Create pool
 		deliveryThreadObjectPool = new GenericObjectPool(deliveryThreadObjectFactory,gopConf);
 		
 		// Initialize object factory of pool
-		deliveryThreadObjectFactory.init(new ThreadGroup("DeliveryThreadGroup"),deliveryThreadObjectPool);
+		deliveryThreadObjectFactory.init(new ThreadGroup("DeliveryThreadGroup"), deliveryThreadObjectPool);
 		
 		// Set up stores and configuration listener 
 		queueStore = AspirinInternal.getConfiguration().getQueueStore();
@@ -77,9 +76,9 @@ public final class DeliveryManager extends Thread implements ConfigurationChange
 		AspirinInternal.getConfiguration().addListener(this);
 	}
 	
-	public String add(MimeMessage mimeMessage) throws MessagingException {
-		String mailid = AspirinInternal.getMailID(mimeMessage);
-		long expiry = AspirinInternal.getExpiry(mimeMessage);
+	public String add(MimeMessageWrapper mimeMessage) throws MessagingException {
+		String mailid = mimeMessage.getMailId();
+		long expiry = mimeMessage.getExpiry();
 		Collection<InternetAddress> recipients = AspirinInternal.extractRecipients(mimeMessage);
 		synchronized (mailingLock) {
 			mailStore.set(mimeMessage);
@@ -88,7 +87,7 @@ public final class DeliveryManager extends Thread implements ConfigurationChange
 		return mailid;
 	}
 	
-	public MimeMessage get(QueueInfo qi) {
+	public MimeMessageWrapper get(QueueInfo qi) {
 		return mailStore.get(qi.getMailid());
 	}
 	
@@ -110,7 +109,7 @@ public final class DeliveryManager extends Thread implements ConfigurationChange
 				qi = queueStore.next();
 				if( qi != null )
 				{
-					MimeMessage message = get(qi);
+					MimeMessageWrapper message = get(qi);
 					if( message == null )
 					{
 						AspirinInternal.getLogger().warn("No MimeMessage found for qi={}",qi);
@@ -127,7 +126,7 @@ public final class DeliveryManager extends Thread implements ConfigurationChange
 					{
 						AspirinInternal.getLogger().debug("DeliveryManager.run(): Start delivery. qi={}",qi);
 						DeliveryThread dThread = (DeliveryThread)deliveryThreadObjectPool.borrowObject();
-						AspirinInternal.getLogger().trace("DeliveryManager.run(): Borrow DeliveryThread object. dt={}: state '{}/{}'",new Object[]{dThread.getName(), dThread.getState().name(), dThread.isAlive()});
+						AspirinInternal.getLogger().trace("DeliveryManager.run(): Borrow DeliveryThread object. dt={}: state '{}/{}'", dThread.getName(), dThread.getState().name(), dThread.isAlive());
 						dThread.setContext(dCtx);
 						/*
 						 * On first borrow the DeliveryThread is created and 
@@ -211,7 +210,7 @@ public final class DeliveryManager extends Thread implements ConfigurationChange
 		queueStore.setSendingResult(qi);
 		if( queueStore.isCompleted(qi.getMailid()) )
 			queueStore.remove(qi.getMailid());
-		AspirinInternal.getLogger().trace("DeliveryManager.release(): Release item '{}' with state: '{}' after {} attempts.",new Object[]{qi.getMailid(),qi.getState().name(), qi.getAttemptCount()});
+		AspirinInternal.getLogger().trace("DeliveryManager.release(): Release item '{}' with state: '{}' after {} attempts.", qi.getMailid(),qi.getState().name(), qi.getAttemptCount());
 	}
 	
 	public boolean isCompleted(QueueInfo qi) {

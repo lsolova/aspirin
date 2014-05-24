@@ -2,10 +2,10 @@ package org.masukomi.aspirin.store.mail;
 
 import org.masukomi.aspirin.AspirinException;
 import org.masukomi.aspirin.AspirinInternal;
+import org.masukomi.aspirin.mail.MimeMessageWrapper;
 
 import javax.mail.MessagingException;
 import javax.mail.Session;
-import javax.mail.internet.MimeMessage;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,7 +30,7 @@ public class FileMailStore implements MailStore {
 	private Path rootDir;
 	private int subDirCount = 3;
 	private Random rand = new Random();
-	private Map<String, WeakReference<MimeMessage>> messageMap = new ConcurrentHashMap<>();
+	private Map<String, WeakReference<MimeMessageWrapper>> messageMap = new ConcurrentHashMap<>();
 	private Map<String, Path> messagePathMap = new ConcurrentHashMap<>();
 
     public FileMailStore(Path rootDir) {
@@ -38,16 +38,16 @@ public class FileMailStore implements MailStore {
     }
 
     @Override
-	public MimeMessage get(String mailid) {
-		WeakReference<MimeMessage> msgRef = messageMap.get(mailid);
-		MimeMessage msg = null;
+	public MimeMessageWrapper get(String mailid) {
+		WeakReference<MimeMessageWrapper> msgRef = messageMap.get(mailid);
+		MimeMessageWrapper msg = null;
 		if( msgRef != null )
 		{
 			msg = msgRef.get();
 			if( msg == null )
 			{
 				try(InputStream msgis = Files.newInputStream(messagePathMap.get(mailid), StandardOpenOption.READ)) {
-                    msg = new MimeMessage(Session.getDefaultInstance(System.getProperties()), msgis);
+                    msg = new MimeMessageWrapper(Session.getDefaultInstance(System.getProperties()), msgis);
 					messageMap.put(mailid, new WeakReference<>(msg));
 				} catch (IOException e) {
 					AspirinInternal.getLogger().error(getClass().getSimpleName()+" No file representation found for name "+mailid,e);
@@ -73,8 +73,8 @@ public class FileMailStore implements MailStore {
                 @Override
                 public FileVisitResult visitFile(Path msgFile, BasicFileAttributes attrs) throws IOException {
                     try(InputStream msgis = Files.newInputStream(msgFile, StandardOpenOption.READ)) {
-                        MimeMessage msg = new MimeMessage(Session.getDefaultInstance(System.getProperties()), msgis);
-                        String mailid = AspirinInternal.getMailID(msg);
+                        MimeMessageWrapper msg = new MimeMessageWrapper(Session.getDefaultInstance(System.getProperties()), msgis);
+                        String mailid = msg.getMailId();
                         messageMap.put(mailid, new WeakReference<>(msg));
                         messagePathMap.put(mailid, msgFile);
                     } catch (IOException e) {
@@ -101,13 +101,13 @@ public class FileMailStore implements MailStore {
     }
 	
 	@Override
-	public void set(MimeMessage msg) {
+	public void set(MimeMessageWrapper msg) {
         createFolderStructure();
-        String mailid = AspirinInternal.getMailID(msg);
+        String mailid = msg.getMailId();
         saveContentAndMetadata(mailid, msg, generateFilePath(mailid));
     }
 
-    private void saveContentAndMetadata(String mailid, MimeMessage msg, Path filepath) {
+    private void saveContentAndMetadata(String mailid, MimeMessageWrapper msg, Path filepath) {
         try(OutputStream fos = Files.newOutputStream(filepath, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
             msg.writeTo(fos);
             messageMap.put(mailid, new WeakReference<>(msg));

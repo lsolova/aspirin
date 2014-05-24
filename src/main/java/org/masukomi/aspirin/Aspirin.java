@@ -1,45 +1,39 @@
 package org.masukomi.aspirin;
 
-import java.util.Date;
+import org.masukomi.aspirin.config.Configuration;
+import org.masukomi.aspirin.listener.AspirinListener;
+import org.masukomi.aspirin.mail.MimeMessageWrapper;
+import org.masukomi.aspirin.store.mail.MailStore;
 
 import javax.mail.MessagingException;
 import javax.mail.internet.MimeMessage;
 
-import org.masukomi.aspirin.config.Configuration;
-import org.masukomi.aspirin.listener.AspirinListener;
-import org.masukomi.aspirin.store.mail.FileMailStore;
-import org.masukomi.aspirin.store.mail.MailStore;
-import org.masukomi.aspirin.store.mail.SimpleMailStore;
-import org.masukomi.aspirin.store.queue.QueueInfo;
-import org.masukomi.aspirin.store.queue.QueueStore;
-
 /**
- * This is the facade class of the Aspirin package. You should to use this 
- * class to manage email sending.
+ * This is the facade class of the Aspirin package. You should to use this class to manage email sending.
  * 
  * <h2>How it works?</h2>
  * 
  * <p>All email is represented by two main object:</p>
  * 
- * <p>A {@link MimeMessage}, which contains the RAW content of an email, so it 
- * could be very large. It is stored in a {@link MailStore} (there is two 
- * different implementation in Aspirin - one for simple in-memory usage
- * {@link SimpleMailStore} and one for heavy usage {@link FileMailStore}, this 
- * stores all MimeMessage objects on filesystem.) If no one of these default 
- * stores is good for you, you can implement the MailStore interface.</p>
+ * <p>A {@link org.masukomi.aspirin.mail.MimeMessageWrapper}, which contains the RAW content of an email, so it could be
+ * very large. The original {@link javax.mail.internet.MimeMessage} object is extended to handle additional headers
+ * easier, this is the MimeMessageWrapper.
+ *
+ * Messages are stored in a {@link MailStore} (there is two different implementation in Aspirin - one for simple
+ * in-memory usage {@link org.masukomi.aspirin.store.mail.SimpleMailStore} and one for heavy usage
+ * {@link org.masukomi.aspirin.store.mail.FileMailStore}, this stores all message objects on filesystem.) If no one of
+ * these default stores is enough for you, you can implement a new one based on the MailStore interface.</p>
  * 
- * <p>A QueueInfo {@link QueueInfo}, which represents an email and a 
- * recipient together, so one email could associated to more QueueInfo objects. 
- * This is an inside object, which contains all control informations of a mail 
- * item. In Aspirin package there is a {@link QueueStore} for in-memory use 
- * {@link org.masukomi.aspirin.store.queue.SimpleQueueStore}, this is the default implementation to store
- * QueueInfo objects. You can find an additional package, which use SQLite 
- * (based on <a href="http://sqljet.com">SQLJet</a>) to store QueueInfo 
- * object.</p>
+ * <p>A {@link org.masukomi.aspirin.store.queue.QueueInfo}, which represents an email-recipient pair, so one message
+ * object could be associated to more QueueInfo objects. This is an inside object, which contains all control
+ * informations of a mail item. In Aspirin package there is a {@link org.masukomi.aspirin.store.queue.QueueStore} for
+ * in-memory use {@link org.masukomi.aspirin.store.queue.SimpleQueueStore}, this is the default implementation to store
+ * QueueInfo objects. An other QueueStore example is implemented, but requires an additional SQL JDBC package (like the
+ * SQLite example based on <a href="http://sqljet.com">SQLJet</a>.</p>
  * 
- * <p><b>Hint:</b> If you need a Quality-of-Service mail sending, use
- * {@link FileMailStore} and additional <b>SqliteQueueStore</b>, they could 
- * preserve emails in queue between runs or on Java failure.</p>
+ * <p><b>Hint:</b> If you need a Quality-of-Service (QoS) mail sending, use
+ * {@link org.masukomi.aspirin.store.mail.FileMailStore} and {@link org.masukomi.aspirin.store.queue.SqliteQueueStore},
+ * they could preserve emails in queue between runs or restore after a crash.</p>
  * 
  * @author Laszlo Solova
  *
@@ -47,22 +41,19 @@ import org.masukomi.aspirin.store.queue.QueueStore;
 public class Aspirin {
 	
 	/**
-	 * Name of ID header placed in MimeMessage object. If no such header is 
-	 * defined in a MimeMessage, then MimeMessage's toString() method is used 
-	 * to generate a new one.
+	 * Name of ID header placed in MimeMessageWrapper object. If it is not defined already, then we generate a new one.
 	 */
 	public static final String HEADER_MAIL_ID = "X-Aspirin-MailID";
 	
 	/**
-	 * Name of expiration time header placed in MimeMessage object. Default 
-	 * expiration time is -1, unlimited. Expiration time is an epoch timestamp 
-	 * in milliseconds.
+	 * Name of expiration time header placed in MimeMessageWrapper object. Default expiration time is -1, unlimited.
+     * Expiration time is an epoch timestamp in milliseconds.
 	 */
 	public static final String HEADER_EXPIRY = "X-Aspirin-Expiry";
-	
+
 	/**
 	 * Add MimeMessage to deliver it.
-	 * @param msg MimeMessage to deliver.
+	 * @param msg MimeMessageWrapper to deliver.
 	 * @throws MessagingException If delivery add failed.
 	 */
 	public static void add(MimeMessage msg) throws MessagingException {
@@ -91,20 +82,10 @@ public class Aspirin {
 	 * It creates a new MimeMessage with standard Aspirin ID header.
 	 * 
 	 * @return new MimeMessage object
-	 * 
+	 * @throws javax.mail.MessagingException if something went wrong
 	 */
-	public static MimeMessage createNewMimeMessage() {
+	public static MimeMessageWrapper createNewMimeMessage() throws MessagingException {
 		return AspirinInternal.createNewMimeMessage();
-	}
-	
-	/**
-	 * Format expiry header content.
-	 * @param date Expiry date of a message.
-	 * @return Formatted date of expiry - as String. It could be add as 
-	 * MimeMessage header. Please use HEADER_EXPIRY constant as header name.
-	 */
-	public static String formatExpiry(Date date) {
-		return AspirinInternal.formatExpiry(date);
 	}
 	
 	/**

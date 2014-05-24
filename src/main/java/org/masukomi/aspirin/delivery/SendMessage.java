@@ -1,19 +1,20 @@
 package org.masukomi.aspirin.delivery;
 
+import com.sun.mail.smtp.SMTPTransport;
+import org.masukomi.aspirin.AspirinInternal;
+import org.masukomi.aspirin.mail.MimeMessageWrapper;
+import org.masukomi.aspirin.store.queue.DeliveryState;
+
+import javax.mail.MessagingException;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.URLName;
+import javax.mail.internet.AddressException;
+import javax.mail.internet.InternetAddress;
 import java.net.ConnectException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Properties;
-
-import javax.mail.*;
-import javax.mail.internet.AddressException;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
-
-import org.masukomi.aspirin.AspirinInternal;
-import org.masukomi.aspirin.store.queue.DeliveryState;
-
-import com.sun.mail.smtp.SMTPTransport;
 
 /**
  * 
@@ -29,7 +30,7 @@ public class SendMessage implements DeliveryHandler {
 		// Collect sending informations
 		Collection<URLName> targetServers = dCtx.getContextVariable("targetservers");
 		Session session = AspirinInternal.getConfiguration().getMailSession();
-		MimeMessage message = dCtx.getMessage();
+		MimeMessageWrapper message = dCtx.getMessage();
 		
 		// Prepare and send
 		Iterator<URLName> urlnIt = targetServers.iterator();
@@ -44,7 +45,7 @@ public class SendMessage implements DeliveryHandler {
 		{
 			try {
 				URLName outgoingMailServer = urlnIt.next();
-				AspirinInternal.getLogger().debug("SendMessage.handle(): Attempting delivery of '{}' to recipient '{}' on host '{}' ",new Object[]{dCtx.getQueueInfo().getMailid(),dCtx.getQueueInfo().getRecipient(),outgoingMailServer});
+				AspirinInternal.getLogger().debug("SendMessage.handle(): Attempting delivery of '{}' to recipient '{}' on host '{}' ", dCtx.getQueueInfo().getMailid(),dCtx.getQueueInfo().getRecipient(),outgoingMailServer);
 				Properties props = session.getProperties();
 				if (message.getSender() == null) {
 					props.put("mail.smtp.from", "<>");

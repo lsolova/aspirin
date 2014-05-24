@@ -1,46 +1,46 @@
 package org.masukomi.aspirin.store.mail;
 
-import junit.framework.Assert;
+import static org.hamcrest.CoreMatchers.*;
 import org.junit.Before;
 import org.junit.Test;
-import org.masukomi.aspirin.AspirinInternal;
 import org.masukomi.aspirin.TestMailFactory;
+import org.masukomi.aspirin.mail.MimeMessageWrapper;
 
 import javax.mail.internet.MimeMessage;
 import java.util.List;
 
+import static org.junit.Assert.*;
+
 public abstract class AbstractMailStoreTest {
 
     protected MailStore mailStore;
-    protected MimeMessage mimeMessage;
-    protected MimeMessage mimeMessage2;
+    protected MimeMessageWrapper mimeMessage;
+    protected MimeMessageWrapper mimeMessage2;
 
     @Test
     public void set() throws Exception {
-        String msgid1 = AspirinInternal.getMailID(mimeMessage);
         mailStore.set(mimeMessage);
-        Assert.assertEquals(mimeMessage, mailStore.get(msgid1));
+        assertThat(mailStore.get(mimeMessage.getMailId()), equalTo((MimeMessage) mimeMessage));
     }
 
     @Test
     public void remove() throws Exception {
-        String msgid1 = AspirinInternal.getMailID(mimeMessage);
         mailStore.set(mimeMessage);
-        mailStore.remove(msgid1);
-        Assert.assertNull(mailStore.get(msgid1));
+        mailStore.remove(mimeMessage.getMailId());
+        assertNull(mailStore.get(mimeMessage.getMailId()));
     }
 
     @Test
     public void getMailIds() throws Exception {
-        String msgid1 = AspirinInternal.getMailID(mimeMessage);
+        String msgid1 = mimeMessage.getMailId();
         mailStore.set(mimeMessage);
-        String msgid2 = AspirinInternal.getMailID(mimeMessage2);
+        String msgid2 = mimeMessage2.getMailId();
         mailStore.set(mimeMessage2);
         List<String> mailIds = mailStore.getMailIds();
-        Assert.assertTrue(mailIds.contains(msgid1) && mailIds.contains(msgid2));
+        assertTrue(mailIds.contains(msgid1) && mailIds.contains(msgid2));
         mailStore.remove(msgid1);
         List<String> mailIds2 = mailStore.getMailIds();
-        Assert.assertTrue(!mailIds2.contains(msgid1) && mailIds2.contains(msgid2));
+        assertTrue(!mailIds2.contains(msgid1) && mailIds2.contains(msgid2));
     }
 
     @Before
@@ -51,6 +51,6 @@ public abstract class AbstractMailStoreTest {
         initializeBefore();
     }
 
-    public abstract void initializeBefore();
+    public abstract void initializeBefore() throws Exception;
 
 }

@@ -1,9 +1,11 @@
 package org.masukomi.aspirin;
 
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
+import org.masukomi.aspirin.config.Configuration;
+import org.masukomi.aspirin.delivery.DeliveryManager;
+import org.masukomi.aspirin.listener.AspirinListener;
+import org.masukomi.aspirin.listener.ListenerManager;
+import org.masukomi.aspirin.mail.MimeMessageWrapper;
+import org.slf4j.Logger;
 
 import javax.mail.Address;
 import javax.mail.Message;
@@ -12,12 +14,8 @@ import javax.mail.Session;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMessage.RecipientType;
-
-import org.masukomi.aspirin.config.Configuration;
-import org.masukomi.aspirin.delivery.DeliveryManager;
-import org.masukomi.aspirin.listener.AspirinListener;
-import org.masukomi.aspirin.listener.ListenerManager;
-import org.slf4j.Logger;
+import java.util.ArrayList;
+import java.util.Collection;
 
 /**
  * Inside factory and part provider class.
@@ -27,18 +25,9 @@ import org.slf4j.Logger;
  */
 public class AspirinInternal {
 	
-	/**
-	 * Formatter to set expiry header. Please, use this formatter to create or 
-	 * change a current header.
-	 */
-	public static final SimpleDateFormat expiryFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
-	
+
 	/** This session is used to generate new MimeMessage objects. */
 	private static volatile Session defaultSession = null;
-	
-	/** This counter is used to generate unique message ids. */
-	private static Integer idCounter = 0;
-	private static Object idCounterLock = new Object();
 	
 	/** Configuration object of Aspirin. */
 	private static Configuration configuration = Configuration.getInstance();
@@ -66,7 +55,7 @@ public class AspirinInternal {
 	protected static void add(MimeMessage msg) throws MessagingException {
 		if( !deliveryManager.isAlive() )
 			deliveryManager.start();
-		deliveryManager.add(msg);
+		deliveryManager.add(convert(msg));
 	}
 	
 	/**
@@ -76,9 +65,10 @@ public class AspirinInternal {
 	 * @throws MessagingException If delivery add failed.
 	 */
 	public static void add(MimeMessage msg, long expiry) throws MessagingException {
-		if( 0 < expiry )
-			setExpiry(msg, expiry);
-		add(msg);
+        MimeMessageWrapper wrappedMsg = convert(msg);
+        if( 0 < expiry )
+            wrappedMsg.setExpiry(expiry);
+		add(wrappedMsg);
 	}
 	
 	/**
@@ -113,27 +103,17 @@ public class AspirinInternal {
 	 * It creates a new MimeMessage with standard Aspirin ID header.
 	 * 
 	 * @return new MimeMessage object
+     * @throws javax.mail.MessagingException if message creation failed
 	 * 
 	 */
-	public static MimeMessage createNewMimeMessage() {
+	public static MimeMessageWrapper createNewMimeMessage() throws MessagingException {
 		if( defaultSession == null )
 			defaultSession = Session.getDefaultInstance(System.getProperties());
-		MimeMessage mMesg = new MimeMessage(defaultSession);
-		synchronized (idCounterLock) {
-			long nowTime = System.currentTimeMillis()/1000;
-			String newId = nowTime+"."+Integer.toHexString(idCounter++);
-			try {
-				mMesg.setHeader(Aspirin.HEADER_MAIL_ID, newId);
-			} catch (MessagingException msge) {
-				getLogger().warn("Aspirin Mail ID could not be generated.", msge);
-				msge.printStackTrace();
-			}
-		}
-		return mMesg;
+		return new MimeMessageWrapper(defaultSession);
 	}
 	
 	public static Collection<InternetAddress> extractRecipients(MimeMessage message) throws MessagingException {
-		Collection<InternetAddress> recipients = new ArrayList<InternetAddress>();
+		Collection<InternetAddress> recipients = new ArrayList<>();
 		
 		Address[] addresses;
 		Message.RecipientType[] types = new Message.RecipientType[]{
@@ -160,69 +140,23 @@ public class AspirinInternal {
 	}
 	
 	/**
-	 * Format expiry header content.
-	 * @param date Expiry date of a message.
-	 * @return Formatted date of expiry - as String. It could be add as 
-	 * MimeMessage header. Please use HEADER_EXPIRY constant as header name.
-	 */
-	public static String formatExpiry(Date date) {
-		return expiryFormat.format(date);
-	}
-
-	/**
 	 * Decode mail ID from MimeMessage. If no such header was defined, then we 
 	 * get MimeMessage's toString() method result back.
 	 * 
 	 * @param message MimeMessage, which ID needs.
 	 * @return An unique mail id associated to this MimeMessage.
+     *
+     * @deprecated Use MimeMessageWrapper.getMailId() method instead.
 	 */
+    @Deprecated
 	public static String getMailID(MimeMessage message) {
-		String[] headers;
-		try {
-			headers = message.getHeader(Aspirin.HEADER_MAIL_ID);
-			if( headers != null && 0 < headers.length )
-				return headers[0];
-		} catch (MessagingException e) {
-			getLogger().error("MailID header could not be get from MimeMessage.", e);
-		}
+		if( message instanceof MimeMessageWrapper ) {
+            return ((MimeMessageWrapper)message).getMailId();
+        }
 		return message.toString();
 	}
-	
-	/**
-	 * It gives back expiry value of a message in epoch milliseconds.
-	 * @param message The MimeMessage which expiry is needed.
-	 * @return Expiry in milliseconds.
-	 */
-	public static long getExpiry(MimeMessage message) {
-		String headers[];
-		try {
-			headers = message.getHeader(Aspirin.HEADER_EXPIRY);
-			if( headers != null && 0 < headers.length )
-				return expiryFormat.parse(headers[0]).getTime();
-		} catch (Exception e) {
-			getLogger().error("Expiration header could not be get from MimeMessage.", e);
-		}
-		if( configuration.getExpiry() == Configuration.NEVER_EXPIRES )
-			return Long.MAX_VALUE;
-		try {
-			Date sentDate = message.getReceivedDate();
-			if( sentDate != null )
-				return sentDate.getTime()+configuration.getExpiry();
-		} catch (MessagingException e) {
-			getLogger().error("Expiration calculation could not be based on message date.",e);
-		}
-		return System.currentTimeMillis()+configuration.getExpiry();
-	}
-	
-	public static void setExpiry(MimeMessage message, long expiry) {
-		try {
-			message.setHeader(Aspirin.HEADER_EXPIRY, expiryFormat.format(new Date(System.currentTimeMillis()+expiry)));
-		} catch (MessagingException e) {
-			getLogger().error("Could not set Expiry of the MimeMessage: "+getMailID(message)+".", e);
-		}
-	}
-	
-	public static Logger getLogger() {
+
+    public static Logger getLogger() {
 		if( configuration == null ) { return null; }
 		return configuration.getLogger();
 	}
@@ -238,5 +172,12 @@ public class AspirinInternal {
 	public static void shutdown() {
 		deliveryManager.shutdown();
 	}
+
+    private static MimeMessageWrapper convert(MimeMessage mimeMessage) throws MessagingException{
+        if( mimeMessage instanceof MimeMessageWrapper ) {
+            return MimeMessageWrapper.class.cast(mimeMessage);
+        }
+        return new MimeMessageWrapper(mimeMessage);
+    }
 
 }

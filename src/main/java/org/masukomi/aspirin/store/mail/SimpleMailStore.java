@@ -1,8 +1,7 @@
 package org.masukomi.aspirin.store.mail;
 
-import org.masukomi.aspirin.AspirinInternal;
+import org.masukomi.aspirin.mail.MimeMessageWrapper;
 
-import javax.mail.internet.MimeMessage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,11 +16,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class SimpleMailStore implements MailStore {
 	
-	private Map<String, MimeMessage> messageMap = new ConcurrentHashMap<>();
+	private Map<String, MimeMessageWrapper> messageMap = new ConcurrentHashMap<>();
 	
 
 	@Override
-	public MimeMessage get(String mailid) {
+	public MimeMessageWrapper get(String mailid) {
 		return messageMap.get(mailid);
 	}
 	
@@ -41,8 +40,8 @@ public class SimpleMailStore implements MailStore {
 	}
 
 	@Override
-	public void set(MimeMessage msg) {
-		messageMap.put(AspirinInternal.getMailID(msg), msg);
+	public void set(MimeMessageWrapper msg) {
+		messageMap.put(msg.getMailId(), msg);
 	}
 
 }

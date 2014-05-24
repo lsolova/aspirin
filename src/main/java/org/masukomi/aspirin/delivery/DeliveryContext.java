@@ -1,12 +1,11 @@
 package org.masukomi.aspirin.delivery;
 
-import java.util.HashMap;
-import java.util.Map;
+import org.masukomi.aspirin.mail.MimeMessageWrapper;
+import org.masukomi.aspirin.store.queue.QueueInfo;
 
 import javax.mail.Session;
-import javax.mail.internet.MimeMessage;
-
-import org.masukomi.aspirin.store.queue.QueueInfo;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * This class is the context of a delivery which contains all required 
@@ -24,11 +23,11 @@ public class DeliveryContext {
 		this.queueInfo = queueInfo;
 		return this;
 	}
-	private MimeMessage message;
-	public MimeMessage getMessage() {
+	private MimeMessageWrapper message;
+	public MimeMessageWrapper getMessage() {
 		return message;
 	}
-	public DeliveryContext setMessage(MimeMessage message) {
+	public DeliveryContext setMessage(MimeMessageWrapper message) {
 		this.message = message;
 		return this;
 	}
@@ -54,19 +53,15 @@ public class DeliveryContext {
 			return (T)contextVariables.get(name);
 		return null;
 	}
-	
-	private transient String ctxToString;
-	@Override
-	public String toString() {
-		if( ctxToString == null )
-		{
-			StringBuilder sb = new StringBuilder();
-			sb.append(getClass().getSimpleName()).append(" [");
-			sb.append("qi=").append(queueInfo);
-			sb.append("]; ");
-			ctxToString = sb.toString();
-		}
-		return ctxToString;
-	}
+
+    private transient String ctxToString;
+
+    @Override
+    public String toString() {
+        if (ctxToString == null) {
+            ctxToString = getClass().getSimpleName() + " [" + "qi=" + queueInfo + "]; ";
+        }
+        return ctxToString;
+    }
 
 }
